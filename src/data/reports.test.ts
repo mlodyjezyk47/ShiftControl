@@ -1,0 +1,11 @@
+import {expect,it} from 'vitest';
+import {summaryRows} from './reports';
+import {DEFAULT_ANALYSIS} from '../analysis/types';
+import {DEFAULT_PAY_MONTH} from '../payroll/model';
+import {DEFAULT_ROUNDING} from '../worktime';
+import type {PeriodSettings,AnalysisShift} from '../db';
+const period:PeriodSettings={id:'current',start:'2025-10-01',end:'2025-12-31',month1:176,month2:160,month3:168,quarterTotal:504};
+const shifts:AnalysisShift[]=[{date:'2025-11-03',code:'A',start:'09:00',end:'17:00',plannedStart:'09:00',plannedEnd:'17:00',actualStart:'09:00',actualEnd:'18:36',billingEnd:'18:45',nextDay:false,dayOff:false,actualConfirmed:true}];
+const payroll={months:{'2025-11':{...DEFAULT_PAY_MONTH,base:6400,nominal:160,hours50:1.6}},quarters:{},components:[]};
+it('raport miesięczny zachowuje rozdzielenie faktycznych, rozliczeniowych i składników płacy',()=>{const rows=summaryRows(shifts,period,DEFAULT_ANALYSIS,DEFAULT_ROUNDING,[],[],payroll,'2025-11');const value=(label:string)=>rows.find(r=>r[0]==='2025-11'&&r[1]===label)?.[2];expect(value('Faktyczna praca')).toBe(9.6);expect(value('Czas rozliczeniowy')).toBe(9.75);expect(value('Normalne wynagrodzenie za dobowe')).toBe(64);expect(value('Dodatek 50% (procent wg ustawień)')).toBe(32);expect(value('Znane składniki miesięczne')).toBe(6496)});
+it('raport kwartalny podaje nominał źródłowy i ostrzeżenia zamiast automatycznej kwalifikacji',()=>{const rows=summaryRows(shifts,period,DEFAULT_ANALYSIS,DEFAULT_ROUNDING,[],[],payroll);expect(rows.find(r=>r[0]==='2025-10-01/2025-12-31'&&r[1]==='Nominał okresu')?.[2]).toBe(504);expect(rows.some(r=>r[1]==='Ostrzeżenie')).toBe(true);expect(rows.some(r=>r[1]==='Znane składniki odroczone')).toBe(true)});
